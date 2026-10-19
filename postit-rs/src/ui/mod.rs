@@ -440,6 +440,11 @@ impl PostItUI {
         settings_style.visuals.window_fill = Color32::WHITE;
         settings_style.visuals.panel_fill = Color32::WHITE;
         settings_style.visuals.extreme_bg_color = Color32::from_rgb(245, 246, 248);
+        // Keep field outlines legible in every interaction state.
+        let field_border = Stroke::new(1.0_f32, Color32::BLACK);
+        settings_style.visuals.widgets.inactive.bg_stroke = field_border;
+        settings_style.visuals.widgets.hovered.bg_stroke = field_border;
+        settings_style.visuals.widgets.active.bg_stroke = field_border;
         ctx.set_style(settings_style);
         let mut open = true;
         let mut edited = self.config.clone();
