@@ -334,7 +334,7 @@ impl PostItUI {
         painter.galley(text_pos, galley, text_color);
     }
 
-    fn draw_close_button(&self, ctx: &Context, painter: &Painter, window_rect: Rect) {
+    fn draw_close_button(&mut self, ctx: &Context, painter: &Painter, window_rect: Rect) {
         let btn_size = 20.0;
         let btn_rect = Rect::from_min_size(
             window_rect.right_top() + Vec2::new(-btn_size - 5.0, 5.0),
@@ -345,14 +345,13 @@ impl PostItUI {
         let clicked = ctx.input(|i| i.pointer.button_clicked(egui::PointerButton::Primary) && btn_rect.contains(i.pointer.hover_pos().unwrap_or_default()));
         
         if clicked {
-            // Signal close through a different mechanism since we can't mutate here
-            // The close check happens in update()
+            self.close_requested = true;
         }
 
         let bg_color = if hover {
-            Color32::from_rgba_premultiplied(255, 80, 80, 200)
+            Color32::from_rgb(185, 28, 28)
         } else {
-            Color32::from_rgba_premultiplied(255, 255, 255, 50)
+            Color32::from_rgb(220, 38, 38)
         };
 
         painter.rect_filled(btn_rect, Rounding::same(4.0), bg_color);
