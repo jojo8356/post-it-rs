@@ -67,6 +67,7 @@ struct Args {
 
 /// Application state shared between event loop and UI
 struct AppState {
+    config_path: Option<PathBuf>,
     config: Arc<Mutex<Config>>,
     content_provider: Arc<Mutex<ContentProvider>>,
     ui: Arc<Mutex<Option<PostItUI>>>,
@@ -76,7 +77,7 @@ struct AppState {
 }
 
 impl AppState {
-    fn new(config: Config) -> Self {
+    fn new(config: Config, config_path: Option<PathBuf>) -> Self {
         let config_arc = Arc::new(Mutex::new(config));
         let content_provider = Arc::new(Mutex::new(ContentProvider::new(config_arc.clone())));
         
@@ -87,6 +88,7 @@ impl AppState {
         }
 
         Self {
+            config_path,
             config: config_arc,
             content_provider,
             ui: Arc::new(Mutex::new(None)),
@@ -167,7 +169,9 @@ impl eframe::App for PostItApp {
             
             if let Some(content) = pending {
                 let config = self.state.config.lock().unwrap().clone();
-                *ui_lock = Some(PostItUI::new(config, content));
+                let mut postit = PostItUI::new(config, content);
+                postit.set_save_path(self.state.config_path.clone());
+                *ui_lock = Some(postit);
                 ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
             }
             
@@ -191,6 +195,7 @@ impl eframe::App for PostItApp {
                 }
             }
             ui.ui(ctx);
+            *self.state.config.lock().unwrap() = ui.config().clone();
             
             if ui.should_close() {
                 *ui_lock = None;
@@ -262,7 +267,7 @@ fn main() -> Result<()> {
     let font_defs = font_manager.build_font_definitions(&config);
 
     // Create app state
-    let state = Arc::new(AppState::new(config.clone()));
+    let state = Arc::new(AppState::new(config.clone(), args.config.clone().or_else(Config::default_config_path)));
 
     // One-shot demos do not need a background system listener.
     if !args.once {

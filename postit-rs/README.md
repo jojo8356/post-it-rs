@@ -108,6 +108,23 @@ postit-rs --print-default-config > ~/.config/postit-rs/postit.conf.toml
 nano ~/.config/postit-rs/postit.conf.toml
 ```
 
+### Graphical settings
+
+Click the gear at the bottom-right of the card to open the settings window.
+Title, text size, card colors, spacing, shadow, and overlay opacity have a live
+preview. Use **Enregistrer la configuration** to persist them to the active
+`--config` file, or the default configuration path shown in the window.
+Parent directories are created automatically; write errors are displayed.
+
+The **Configuration complète (TOML)** editor exposes the other options; click
+**Appliquer le TOML** before saving. Native window properties and font-file
+changes may require a restart. Editing the demo body text only changes the
+preview, not your content files. Escape closes settings first, then the card.
+The settings dialog is a floating window inside the app's overlay.
+
+`--test` always starts with the built-in test theme. To use saved settings on
+subsequent launches, omit `--test`.
+
 ### Enable Autostart
 
 ```bash

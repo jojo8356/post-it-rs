@@ -19,6 +19,10 @@ pub struct PostItUI {
     close_requested: bool,
     auto_close_timer: Option<Duration>,
     show_time: Option<std::time::Instant>,
+    settings_open: bool,
+    settings_toml: String,
+    settings_status: String,
+    save_path: Option<std::path::PathBuf>,
 }
 
 impl PostItUI {
@@ -37,13 +41,30 @@ impl PostItUI {
                 None
             },
             show_time: Some(std::time::Instant::now()),
+            settings_open: false,
+            settings_toml: String::new(),
+            settings_status: String::new(),
+            save_path: Config::default_config_path(),
         }
+    }
+
+    /// Set the file used by the settings window (including CLI --config paths).
+    pub fn set_save_path(&mut self, path: Option<std::path::PathBuf>) {
+        self.save_path = path;
     }
 
     /// Update configuration (for hot-reload)
     pub fn set_config(&mut self, config: Config) {
         self.overlay.set_config(config.overlay.clone());
+        self.auto_close_timer = (config.window.auto_close_ms > 0)
+            .then(|| Duration::from_millis(config.window.auto_close_ms));
+        self.show_time = Some(std::time::Instant::now());
         self.config = config;
+    }
+
+    /// Current preview configuration, shared with the application event handler.
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     /// Update content
@@ -66,9 +87,18 @@ impl PostItUI {
         self.overlay.update();
 
         if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
-            self.close_requested = true;
+            if self.settings_open {
+                self.settings_open = false;
+            } else {
+                self.close_requested = true;
+            }
         }
-        
+        if self.settings_open {
+            // Editing should not dismiss the card or expire its auto-close timer.
+            self.show_time = Some(std::time::Instant::now());
+            return;
+        }
+
         if let Some(duration) = self.auto_close_timer {
             if let Some(start) = self.show_time {
                 if start.elapsed() >= duration {
@@ -164,7 +194,7 @@ impl PostItUI {
         self.window_rect = Some(window_rect);
 
         // Render post-it in a window layer (always on top)
-        let layer_id = LayerId::new(Order::Tooltip, Id::new("postit_window"));
+        let layer_id = LayerId::new(Order::Middle, Id::new("postit_window"));
         let painter = ctx.layer_painter(layer_id);
 
         // Draw shadow if enabled
@@ -186,9 +216,11 @@ impl PostItUI {
         self.draw_body_text(ctx, &painter, body_rect);
 
         // Draw close button (if not click-to-close)
-        if !self.config.window.close_on_click {
+        if !self.config.window.close_on_click && !self.settings_open {
             self.draw_close_button(ctx, &painter, window_rect);
         }
+        self.draw_settings_button(ctx, &painter, window_rect);
+        self.settings_window(ctx);
     }
 
     fn setup_fonts(&self, _ctx: &Context) {
@@ -217,7 +249,7 @@ impl PostItUI {
         ));
         
         let body_height = wrapped.size().y + padding;
-        let total_height = title_height + body_height + 20.0; // Extra margin
+        let total_height = title_height + body_height + 50.0; // Margin and settings footer
 
         Vec2::new(max_width, total_height)
     }
@@ -252,12 +284,7 @@ impl PostItUI {
             }
         }
 
-        // Border
-        painter.rect_stroke(
-            rect,
-            Rounding::same(radius),
-            Stroke::new(1.0_f32, Color32::from_rgba_premultiplied(255, 255, 255, 30)),
-        );
+
     }
 
     fn draw_title_tab(&self, painter: &Painter, window_rect: Rect) -> Rect {
@@ -305,11 +332,16 @@ impl PostItUI {
         };
 
         painter.galley(text_pos, galley, text_color);
+        painter.line_segment(
+            [egui::pos2(tab_rect.left() + 12.0, tab_rect.bottom()),
+             egui::pos2(tab_rect.right() - 12.0, tab_rect.bottom())],
+            Stroke::new(1.0_f32, Color32::from_black_alpha(55)),
+        );
 
         // Return body rect (below title tab)
         Rect::from_min_max(
             egui::pos2(window_rect.min.x, tab_rect.max.y + 2.0),
-            window_rect.max - Vec2::new(10.0, 10.0),
+            window_rect.max - Vec2::new(10.0, 42.0),
         )
     }
 
@@ -370,6 +402,129 @@ impl PostItUI {
         ], cross_stroke);
     }
 
+    fn draw_settings_button(&mut self, ctx: &Context, painter: &Painter, rect: Rect) {
+        let button = Rect::from_min_size(
+            rect.right_bottom() - Vec2::new(32.0, 32.0), Vec2::splat(26.0),
+        );
+        let hovered = ctx.input(|i| i.pointer.hover_pos().is_some_and(|p| button.contains(p)));
+        if hovered && !self.settings_open {
+            ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+            painter.rect_filled(button, Rounding::same(5.0), Color32::from_black_alpha(25));
+            if ctx.input(|i| i.pointer.button_clicked(egui::PointerButton::Primary)) {
+                self.settings_open = true;
+                self.settings_toml = toml::to_string_pretty(&self.config).unwrap_or_default();
+                self.settings_status.clear();
+            }
+        }
+        // Vector gear: independent of installed fonts and emoji support.
+        let center = button.center();
+        let color = self.config.body.color.to_egui();
+        let stroke = Stroke::new(1.8_f32, color);
+        painter.circle_stroke(center, 6.0, stroke);
+        painter.circle_stroke(center, 2.2, stroke);
+        for tooth in 0..8 {
+            let angle = tooth as f32 * std::f32::consts::TAU / 8.0;
+            let direction = Vec2::new(angle.cos(), angle.sin());
+            painter.line_segment([center + direction * 6.0, center + direction * 9.0], stroke);
+        }
+    }
+
+    fn settings_window(&mut self, ctx: &Context) {
+        if !self.settings_open { return; }
+        let mut open = true;
+        let mut edited = self.config.clone();
+        let mut apply_toml = false;
+        let mut save = false;
+        egui::Window::new("Paramètres du post-it")
+            .id(Id::new("postit_settings"))
+            .open(&mut open)
+            .order(Order::Foreground)
+            .default_width(460.0)
+            .default_pos(ctx.screen_rect().center() - Vec2::new(230.0, 220.0))
+            .frame(egui::Frame::window(&ctx.style()).fill(Color32::from_rgb(30, 33, 40)))
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical().max_height(500.0).show(ui, |ui| {
+                    ui.label("Aperçu en direct · Échap ferme les paramètres");
+                    ui.separator();
+                    ui.checkbox(&mut edited.title.enabled, "Afficher le titre");
+                    ui.horizontal(|ui| {
+                        ui.label("Titre");
+                        ui.text_edit_singleline(&mut edited.title.text);
+                    });
+                    ui.label("Texte du post-it (aperçu uniquement)");
+                    ui.text_edit_multiline(&mut self.content.body);
+                    ui.add(egui::Slider::new(&mut edited.title.font_size, 8..=64).text("Taille du titre"));
+                    ui.add(egui::Slider::new(&mut edited.body.font_size, 8..=64).text("Taille du texte"));
+                    ui.add(egui::Slider::new(&mut edited.body.max_width, 200..=1000).text("Largeur"));
+                    ui.add(egui::Slider::new(&mut edited.body.padding, 0..=60).text("Marge intérieure"));
+                    ui.add(egui::Slider::new(&mut edited.body.border_radius, 0..=40).text("Arrondi"));
+                    ui.checkbox(&mut edited.body.shadow, "Ombre");
+                    Self::color_control(ui, "Fond du titre", &mut edited.title.bg_color);
+                    Self::color_control(ui, "Texte du titre", &mut edited.title.color);
+                    Self::color_control(ui, "Fond du post-it", &mut edited.body.bg_color);
+                    Self::color_control(ui, "Texte", &mut edited.body.color);
+                    ui.separator();
+                    ui.checkbox(&mut edited.overlay.enabled, "Calque derrière le post-it");
+                    ui.add(egui::Slider::new(&mut edited.overlay.opacity, 0.0..=1.0).text("Opacité du calque"));
+                    Self::color_control(ui, "Couleur du calque", &mut edited.overlay.color);
+                    ui.checkbox(&mut edited.trigger.on_boot, "Afficher au démarrage");
+                    ui.checkbox(&mut edited.trigger.on_wake, "Afficher au réveil");
+                    ui.separator();
+                    ui.collapsing("Configuration complète (TOML)", |ui| {
+                        ui.label("Les modifications TOML sont appliquées avec le bouton ci-dessous.");
+                        ui.add(egui::TextEdit::multiline(&mut self.settings_toml)
+                            .font(egui::TextStyle::Monospace).desired_rows(12).desired_width(f32::INFINITY));
+                        apply_toml = ui.button("Appliquer le TOML").clicked();
+                    });
+                    if let Some(path) = &self.save_path {
+                        ui.label(format!("Fichier : {}", path.display()));
+                        save = ui.button("Enregistrer la configuration").clicked();
+                    } else {
+                        ui.label("Aucun chemin de configuration disponible.");
+                    }
+                    ui.label("Le texte de démonstration n’est pas enregistré dans la configuration.");
+                    if !self.settings_status.is_empty() { ui.label(&self.settings_status); }
+                });
+            });
+        self.settings_open = open;
+        if apply_toml {
+            match toml::from_str::<Config>(&self.settings_toml) {
+                Ok(config) => edited = config,
+                Err(error) => self.settings_status = format!("TOML invalide : {error}"),
+            }
+        }
+        // Avoid restarting the fade and auto-close timer on every frame.
+        if toml::to_string(&edited).ok() != toml::to_string(&self.config).ok() {
+            self.set_config(edited);
+            self.settings_toml = toml::to_string_pretty(&self.config).unwrap_or_default();
+            self.settings_status = "Aperçu mis à jour. Enregistrez pour conserver ces réglages.".into();
+        }
+        if save {
+            if let Some(path) = &self.save_path {
+                let result = (|| -> anyhow::Result<()> {
+                    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    self.config.save_to_file(path)
+                })();
+                self.settings_status = match result {
+                    Ok(()) => "Configuration enregistrée. Certains réglages nécessitent un redémarrage.".into(),
+                    Err(error) => format!("Échec de l’enregistrement : {error:#}"),
+                };
+            }
+        }
+    }
+
+    fn color_control(ui: &mut egui::Ui, label: &str, color: &mut crate::config::Color) {
+        ui.horizontal(|ui| {
+            ui.label(label);
+            let mut rgba = [color.r, color.g, color.b, color.a];
+            if ui.color_edit_button_srgba_unmultiplied(&mut rgba).changed() {
+                *color = crate::config::Color::rgba(rgba[0], rgba[1], rgba[2], rgba[3]);
+            }
+        });
+    }
+
     fn title_font_id(&self) -> FontId {
         let family = if let Some(path) = self.config.title.font_path.to_str() {
             if !path.is_empty() {
@@ -411,6 +566,54 @@ mod tests {
         };
         let ui = PostItUI::new(config, content);
         assert!(!ui.should_close());
+    }
+
+    #[test]
+    fn test_settings_render_and_preserve_save_path() {
+        let mut postit = PostItUI::new(Config::new(), PostItContent::default());
+        let path = std::path::PathBuf::from("custom/settings.toml");
+        postit.set_save_path(Some(path.clone()));
+        postit.settings_open = true;
+        postit.settings_toml = toml::to_string_pretty(postit.config()).unwrap();
+        let ctx = Context::default();
+        let output = ctx.run(egui::RawInput::default(), |ctx| postit.settings_window(ctx));
+        assert!(!output.shapes.is_empty());
+        assert!(postit.settings_open);
+        assert_eq!(postit.save_path, Some(path));
+        assert!(!postit.should_close());
+    }
+
+    #[test]
+    fn test_settings_apply_updates_timer_and_overlay() {
+        let mut postit = PostItUI::new(Config::new(), PostItContent::default());
+        let mut edited = postit.config().clone();
+        edited.window.auto_close_ms = 1500;
+        edited.overlay.enabled = false;
+        edited.title.text = "Mon titre".into();
+        postit.set_config(edited);
+        assert_eq!(postit.auto_close_timer, Some(Duration::from_millis(1500)));
+        assert!(!postit.overlay.is_enabled());
+        assert_eq!(postit.config().title.text, "Mon titre");
+    }
+
+    #[test]
+    fn test_escape_closes_settings_before_card() {
+        let mut postit = PostItUI::new(Config::new(), PostItContent::default());
+        postit.settings_open = true;
+        let ctx = Context::default();
+        let input = egui::RawInput {
+            events: vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+            ..Default::default()
+        };
+        let _ = ctx.run(input, |ctx| postit.update(ctx));
+        assert!(!postit.settings_open);
+        assert!(!postit.should_close());
     }
 
     #[test]
