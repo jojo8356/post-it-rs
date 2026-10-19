@@ -33,6 +33,69 @@ cargo build --release
 # The binary will be at target/release/postit-rs
 ```
 
+### Linux build troubleshooting
+
+Run build commands from the `postit-rs/` directory containing `Cargo.toml`.
+
+If `libdbus-sys` fails with `Package dbus-1 was not found`, install the
+D-Bus development files and pkg-config (the runtime D-Bus package alone is
+not enough):
+
+```bash
+# Debian / Ubuntu
+sudo apt update
+sudo apt install libdbus-1-dev pkg-config
+
+# Fedora
+sudo dnf install dbus-devel pkgconf-pkg-config
+
+# Verify discovery, then retry
+pkg-config --modversion dbus-1
+cargo build
+```
+
+Without administrator access, build the bundled D-Bus source instead:
+
+```bash
+cargo build --features vendored-dbus
+# Or an optimized build:
+cargo build --release --features vendored-dbus
+```
+
+This avoids needing `libdbus-1-dev` and D-Bus discovery via pkg-config, but
+still requires a working C compiler and linker (for example, `cc` and `ar`).
+It does not repair a broken Rust toolchain or replace other GUI dependencies.
+Cargo will update `Cargo.lock` as needed when enabling this feature.
+
+An unset `PKG_CONFIG_PATH` is normal for distro-installed libraries. Only set
+it manually if D-Bus is installed in a nonstandard prefix; it must point to
+the directory containing `dbus-1.pc`.
+
+If rustup reports `failed to install component: 'rust-src', detected conflict`,
+this is a separate toolchain installation problem, not an error in `quote` or
+`proc-macro2`. Stop other running Cargo/rustup commands before repairing it:
+
+```bash
+rustup show active-toolchain
+rustup component remove rust-src
+rustup component add rust-src
+cargo build
+```
+
+Use the same toolchain for both component commands (add `--toolchain <name>`
+if needed). This project does not itself require `rust-src` for a normal host
+build. If component repair still fails, try a clean, separately installed
+stable toolchain without deleting the existing installation:
+
+```bash
+rustup toolchain install stable --profile minimal
+cargo +stable build
+```
+
+If `stable` is itself the damaged installation, reinstalling it may be needed;
+check `rustup show` and any toolchain overrides first. Avoid manually deleting
+files inside the toolchain or running rustup with `sudo`.
+
 ### Configuration
 
 Copy the example config and customize:
