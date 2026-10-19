@@ -3,11 +3,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 use egui::{
-    Align, Color32, Context, FontFamily, FontId, Id, 
+    Color32, Context, FontFamily, FontId, Id,
     LayerId, Order, Painter, Rect, Rounding, Shape, Stroke, Vec2
 };
 use egui::emath::Align as EAlign;
-use crate::config::{Config, FontWeight, PostItContent, TextAlignment, WindowConfig, WindowPosition};
+use crate::config::{Config, PostItContent, WindowPosition};
 use crate::overlay::Overlay;
 
 /// Main post-it UI state
@@ -75,7 +75,6 @@ impl PostItUI {
         
         // Handle close on click
         if self.config.window.close_on_click {
-            let screen_rect = ctx.screen_rect();
             if ctx.input(|i| i.pointer.any_click()) {
                 let pos = ctx.input(|i| i.pointer.latest_pos().unwrap_or_default());
                 // Check if click is outside the post-it content area
@@ -188,7 +187,7 @@ impl PostItUI {
         }
     }
 
-    fn setup_fonts(&self, ctx: &Context) {
+    fn setup_fonts(&self, _ctx: &Context) {
         // Fonts are set globally at startup via FontDefinitions
         // Here we just ensure the context has them
     }
@@ -204,12 +203,6 @@ impl PostItUI {
 
         // Measure body text
         let font_id = self.body_font_id();
-        let galley = ctx.fonts(|f| f.layout_no_wrap(
-            self.content.body.clone(),
-            font_id.clone(),
-            self.config.body.color.to_egui(),
-        ));
-        
         // Estimate wrapped height
         let available_width = max_width - padding;
         let wrapped = ctx.fonts(|f| f.layout(
@@ -259,7 +252,7 @@ impl PostItUI {
         painter.rect_stroke(
             rect,
             Rounding::same(radius),
-            Stroke::new(1.0, Color32::from_rgba_premultiplied(255, 255, 255, 30)),
+            Stroke::new(1.0_f32, Color32::from_rgba_premultiplied(255, 255, 255, 30)),
         );
     }
 
@@ -305,7 +298,6 @@ impl PostItUI {
             EAlign::LEFT => tab_rect.min + Vec2::new(title_config.padding as f32, (tab_rect.height() - galley.size().y) / 2.0),
             EAlign::Center => tab_rect.center_top() + Vec2::new(0.0, (tab_rect.height() - galley.size().y) / 2.0) - Vec2::new(galley.size().x / 2.0, 0.0),
             EAlign::RIGHT => tab_rect.right_top() + Vec2::new(-(title_config.padding as f32) - galley.size().x, (tab_rect.height() - galley.size().y) / 2.0),
-            _ => tab_rect.min + Vec2::new(title_config.padding as f32, (tab_rect.height() - galley.size().y) / 2.0),
         };
 
         painter.galley(text_pos, galley, text_color);
@@ -363,7 +355,7 @@ impl PostItUI {
         
         // X symbol
         let cross_color = Color32::WHITE;
-        let cross_stroke = Stroke::new(2.0, cross_color);
+        let cross_stroke = Stroke::new(2.0_f32, cross_color);
         let margin = 5.0;
         painter.line_segment([
             btn_rect.min + Vec2::new(margin, margin),

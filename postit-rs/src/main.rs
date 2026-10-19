@@ -13,25 +13,16 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use anyhow::{Context, Result};
 use clap::Parser;
-use directories::ProjectDirs;
 use eframe::egui;
 use egui::{Color32, Rounding, Stroke};
 use tracing::{info, error};
 use tracing_subscriber::{fmt, EnvFilter};
 
-mod config;
-mod content;
-mod fonts;
-mod json_posts;
-mod system;
-mod ui;
-mod overlay;
-
-use config::{Config, Color, ContentMode, FontWeight, PostItContent, WindowPosition};
-use content::ContentProvider;
-use fonts::FontManager;
-use system::{create_listener, SystemEvent, set_autostart, AutostartAction};
-use ui::PostItUI;
+use postit_rs::config::{Config, Color, ContentMode, FontWeight, PostItContent, WindowPosition};
+use postit_rs::content::ContentProvider;
+use postit_rs::fonts::FontManager;
+use postit_rs::system::{create_listener, SystemEvent, set_autostart, AutostartAction};
+use postit_rs::ui::PostItUI;
 
 /// Command-line arguments
 #[derive(Parser, Debug)]
@@ -81,12 +72,11 @@ struct AppState {
     ui: Arc<Mutex<Option<PostItUI>>>,
     show_postit: Arc<Mutex<bool>>,
     pending_content: Arc<Mutex<Option<PostItContent>>>,
-    system_listener: Arc<Mutex<Option<Box<dyn system::SystemListener>>>>,
-    font_manager: FontManager,
+    system_listener: Arc<Mutex<Option<Box<dyn postit_rs::system::SystemListener>>>>,
 }
 
 impl AppState {
-    fn new(config: Config, font_manager: FontManager) -> Self {
+    fn new(config: Config) -> Self {
         let config_arc = Arc::new(Mutex::new(config));
         let content_provider = Arc::new(Mutex::new(ContentProvider::new(config_arc.clone())));
         
@@ -103,7 +93,6 @@ impl AppState {
             show_postit: Arc::new(Mutex::new(false)),
             pending_content: Arc::new(Mutex::new(None)),
             system_listener: Arc::new(Mutex::new(None)),
-            font_manager,
         }
     }
 
@@ -251,7 +240,7 @@ fn main() -> Result<()> {
     let font_defs = font_manager.build_font_definitions(&config);
 
     // Create app state
-    let state = Arc::new(AppState::new(config.clone(), font_manager));
+    let state = Arc::new(AppState::new(config.clone()));
 
     // Start system listener
     let mut listener = create_listener();

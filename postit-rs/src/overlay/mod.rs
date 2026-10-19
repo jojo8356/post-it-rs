@@ -136,10 +136,12 @@ impl Default for BlurConfig {
 /// Platform-specific window effects (blur, click-through, etc.)
 pub mod platform {
     use anyhow::Result;
-    use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+    use raw_window_handle::HasWindowHandle;
+    #[cfg(target_os = "windows")]
+    use raw_window_handle::RawWindowHandle;
 
     /// Apply click-through to window (mouse events pass through)
-    pub fn set_click_through(window: &dyn HasRawWindowHandle, enable: bool) -> Result<()> {
+    pub fn set_click_through(_window: &dyn HasWindowHandle, _enable: bool) -> Result<()> {
         #[cfg(target_os = "windows")]
         {
             use windows::Win32::Foundation::HWND;
@@ -147,23 +149,26 @@ pub mod platform {
             use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
             use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
             use windows::Win32::UI::WindowsAndMessaging::WS_EX_TRANSPARENT;
-            use windows::Win32::Foundation::BOOL;
 
-            if let RawWindowHandle::Win32(handle) = window.raw_window_handle() {
-                let hwnd = HWND(handle.hwnd as *mut _);
-                let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-                
-                let new_style = if enable {
-                    ex_style | WS_EX_LAYERED.0 as isize | WS_EX_TRANSPARENT.0 as isize
-                } else {
-                    ex_style & !(WS_EX_TRANSPARENT.0 as isize)
-                };
-                
-                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_style);
-                
-                // For layered window with transparency
-                if enable {
-                    SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
+            let window_handle = _window.window_handle()?;
+            if let RawWindowHandle::Win32(handle) = window_handle.as_raw() {
+                // SAFETY: window_handle keeps the native window borrowed for these calls.
+                unsafe {
+                    let hwnd = HWND(handle.hwnd.get() as *mut _);
+                    let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+
+                    let new_style = if _enable {
+                        ex_style | WS_EX_LAYERED.0 as isize | WS_EX_TRANSPARENT.0 as isize
+                    } else {
+                        ex_style & !(WS_EX_TRANSPARENT.0 as isize)
+                    };
+
+                    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_style);
+
+                    // For layered window with transparency
+                    if _enable {
+                        SetLayeredWindowAttributes(hwnd, windows::Win32::Foundation::COLORREF(0), 255, LWA_ALPHA)?;
+                    }
                 }
             }
         }
@@ -184,7 +189,7 @@ pub mod platform {
     }
 
     /// Apply background blur (platform-specific)
-    pub fn set_blur(window: &dyn HasRawWindowHandle, enable: bool, radius: f32) -> Result<()> {
+    pub fn set_blur(_window: &dyn HasWindowHandle, _enable: bool, _radius: f32) -> Result<()> {
         #[cfg(target_os = "windows")]
         {
             // Windows 11: DWM blur behind
@@ -207,17 +212,21 @@ pub mod platform {
     }
 
     /// Set window to always-on-top
-    pub fn set_always_on_top(window: &dyn HasRawWindowHandle, enable: bool) -> Result<()> {
+    pub fn set_always_on_top(_window: &dyn HasWindowHandle, _enable: bool) -> Result<()> {
         #[cfg(target_os = "windows")]
         {
-            use windows::Win32::Foundation::{HWND, HWND_TOPMOST, HWND_NOTOPMOST};
+            use windows::Win32::Foundation::HWND;
             use windows::Win32::UI::WindowsAndMessaging::*;
             
-            if let RawWindowHandle::Win32(handle) = window.raw_window_handle() {
-                let hwnd = HWND(handle.hwnd as *mut _);
-                let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE;
-                let insert_after = if enable { HWND_TOPMOST } else { HWND_NOTOPMOST };
-                SetWindowPos(hwnd, insert_after, 0, 0, 0, 0, flags);
+            let window_handle = _window.window_handle()?;
+            if let RawWindowHandle::Win32(handle) = window_handle.as_raw() {
+                // SAFETY: window_handle keeps the native window borrowed for these calls.
+                unsafe {
+                    let hwnd = HWND(handle.hwnd.get() as *mut _);
+                    let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE;
+                    let insert_after = if _enable { HWND_TOPMOST } else { HWND_NOTOPMOST };
+                    SetWindowPos(hwnd, Some(insert_after), 0, 0, 0, 0, flags)?;
+                }
             }
         }
         
@@ -236,7 +245,7 @@ pub mod platform {
     }
 
     /// Set window to not accept focus
-    pub fn set_no_focus(window: &dyn HasRawWindowHandle, enable: bool) -> Result<()> {
+    pub fn set_no_focus(_window: &dyn HasWindowHandle, _enable: bool) -> Result<()> {
         #[cfg(target_os = "windows")]
         {
             use windows::Win32::Foundation::HWND;
@@ -244,15 +253,19 @@ pub mod platform {
             use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
             use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
             
-            if let RawWindowHandle::Win32(handle) = window.raw_window_handle() {
-                let hwnd = HWND(handle.hwnd as *mut _);
-                let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-                let new_style = if enable {
-                    ex_style | WS_EX_NOACTIVATE.0 as isize
-                } else {
-                    ex_style & !(WS_EX_NOACTIVATE.0 as isize)
-                };
-                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_style);
+            let window_handle = _window.window_handle()?;
+            if let RawWindowHandle::Win32(handle) = window_handle.as_raw() {
+                // SAFETY: window_handle keeps the native window borrowed for these calls.
+                unsafe {
+                    let hwnd = HWND(handle.hwnd.get() as *mut _);
+                    let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+                    let new_style = if _enable {
+                        ex_style | WS_EX_NOACTIVATE.0 as isize
+                    } else {
+                        ex_style & !(WS_EX_NOACTIVATE.0 as isize)
+                    };
+                    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_style);
+                }
             }
         }
         

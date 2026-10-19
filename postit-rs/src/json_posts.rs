@@ -1,7 +1,6 @@
 //! JSON-based post-it system with enable/disable checkboxes
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::Path;
 use anyhow::{Context, Result};
 

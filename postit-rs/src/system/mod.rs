@@ -4,7 +4,11 @@
 use std::sync::mpsc;
 use std::thread;
 use anyhow::Result;
-use tracing::{debug, info, warn, error};
+use tracing::{info, warn};
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+use tracing::debug;
+#[cfg(target_os = "windows")]
+use tracing::error;
 
 /// Events that can trigger post-it display
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,7 +204,6 @@ pub mod linux {
     use super::*;
     use std::process::Command;
     use std::time::Duration;
-    use tokio::sync::mpsc as tokio_mpsc;
     use tokio::time::interval;
 
     pub struct LinuxListener {
@@ -275,7 +278,7 @@ pub mod linux {
             Ok(())
         }
 
-        fn start_polling_listener(&mut self, tx: mpsc::Sender<SystemEvent>) -> Result<()> {
+        fn start_polling_listener(&mut self, _tx: mpsc::Sender<SystemEvent>) -> Result<()> {
             // Fallback: monitor /proc/acpi/button/lid or similar
             // For now, just log that we're running
             info!("Linux: Using polling fallback for wake detection");
