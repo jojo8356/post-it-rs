@@ -251,6 +251,9 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    #[cfg(target_os = "linux")]
+    prefer_xwayland()?;
+
     // Initialize font manager
     let mut font_manager = FontManager::new(config.fonts.custom_fonts_dir.clone());
     font_manager.load_custom_fonts().ok(); // Non-fatal
@@ -328,6 +331,28 @@ fn main() -> Result<()> {
         return Err(anyhow::anyhow!("eframe error: {}", e));
     }
 
+    Ok(())
+}
+
+/// Prefer XWayland for transparent overlays when both display servers exist.
+/// Re-exec before starting threads instead of mutating the process environment
+/// (which would require unsafe code in Rust 2024).
+#[cfg(target_os = "linux")]
+fn prefer_xwayland() -> Result<()> {
+    use std::os::unix::process::CommandExt;
+
+    let x11_available = std::env::var_os("DISPLAY").is_some_and(|v| !v.is_empty());
+    if x11_available && std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        info!("Using XWayland for overlay transparency");
+        let executable = std::env::current_exe().context("Cannot locate application executable")?;
+        let error = std::process::Command::new(executable)
+            .args(std::env::args_os().skip(1))
+            .env_remove("WAYLAND_DISPLAY")
+            .exec();
+        // Successful exec replaces this process. Removing WAYLAND_DISPLAY
+        // prevents re-execution loops; all CLI arguments are preserved.
+        return Err(error).context("Failed to restart application with XWayland");
+    }
     Ok(())
 }
 

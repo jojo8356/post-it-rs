@@ -390,6 +390,12 @@ postit-rs --test --once
 ## Platform-Specific Notes
 
 ### Linux
+- When `DISPLAY` is available, GUI launches automatically remove
+  `WAYLAND_DISPLAY` and re-execute through X11/XWayland to preserve overlay
+  transparency (including under GNOME Wayland). This affects only the app,
+  not the desktop session. CLI arguments are preserved.
+- On Wayland-only systems without `DISPLAY`, the native Wayland backend is
+  retained. Non-GUI commands such as `--validate` do not restart the process.
 - Uses `systemd` user services for boot detection
 - Uses `logind` D-Bus for wake detection
 - Autostart creates `.desktop` file in `~/.config/autostart/`
