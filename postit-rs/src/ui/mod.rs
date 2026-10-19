@@ -431,6 +431,16 @@ impl PostItUI {
 
     fn settings_window(&mut self, ctx: &Context) {
         if !self.settings_open { return; }
+        // Scope a light theme to the settings window, including its title bar
+        // and popups, without changing the card or the transparent viewport.
+        let previous_style = ctx.style();
+        let mut settings_style = (*previous_style).clone();
+        settings_style.visuals = egui::Visuals::light();
+        settings_style.visuals.override_text_color = Some(Color32::BLACK);
+        settings_style.visuals.window_fill = Color32::WHITE;
+        settings_style.visuals.panel_fill = Color32::WHITE;
+        settings_style.visuals.extreme_bg_color = Color32::from_rgb(245, 246, 248);
+        ctx.set_style(settings_style);
         let mut open = true;
         let mut edited = self.config.clone();
         let mut apply_toml = false;
@@ -441,7 +451,7 @@ impl PostItUI {
             .order(Order::Foreground)
             .default_width(460.0)
             .default_pos(ctx.screen_rect().center() - Vec2::new(230.0, 220.0))
-            .frame(egui::Frame::window(&ctx.style()).fill(Color32::from_rgb(30, 33, 40)))
+            .frame(egui::Frame::window(&ctx.style()).fill(Color32::WHITE))
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().max_height(500.0).show(ui, |ui| {
                     ui.label("Aperçu en direct · Échap ferme les paramètres");
@@ -486,6 +496,7 @@ impl PostItUI {
                     if !self.settings_status.is_empty() { ui.label(&self.settings_status); }
                 });
             });
+        ctx.set_style(previous_style);
         self.settings_open = open;
         if apply_toml {
             match toml::from_str::<Config>(&self.settings_toml) {
