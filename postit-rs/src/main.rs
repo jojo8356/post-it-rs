@@ -163,6 +163,7 @@ impl eframe::App for PostItApp {
             if let Some(content) = pending {
                 let config = self.state.config.lock().unwrap().clone();
                 *ui_lock = Some(PostItUI::new(config, content));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
             }
             
             *show = false;
@@ -242,46 +243,29 @@ fn main() -> Result<()> {
     // Create app state
     let state = Arc::new(AppState::new(config.clone()));
 
-    // Start system listener
-    let mut listener = create_listener();
-    
-    // Set up system event channel
-    let (tx, rx) = std::sync::mpsc::channel::<SystemEvent>();
-    listener.start(tx)?;
-    *state.system_listener.lock().unwrap() = Some(listener);
+    // One-shot demos do not need a background system listener.
+    if !args.once {
+        let mut listener = create_listener();
+        let (tx, rx) = std::sync::mpsc::channel::<SystemEvent>();
+        listener.start(tx)?;
+        *state.system_listener.lock().unwrap() = Some(listener);
 
-    // Spawn event handler thread
-    let state_for_events = state.clone();
-    std::thread::spawn(move || {
-        while let Ok(event) = rx.recv() {
-            state_for_events.handle_system_event(event);
-        }
-    });
-
-    // Trigger initial show if --once, --test, or on boot
-    if args.once || args.test {
-        state.trigger_show();
+        let state_for_events = state.clone();
+        std::thread::spawn(move || {
+            while let Ok(event) = rx.recv() {
+                state_for_events.handle_system_event(event);
+            }
+        });
     }
 
-    // Start system listener
-    let mut listener = create_listener();
-    
-    // Set up system event channel
-    let (tx, rx) = std::sync::mpsc::channel::<SystemEvent>();
-    listener.start(tx)?;
-    *state.system_listener.lock().unwrap() = Some(listener);
-
-    // Spawn event handler thread
-    let state_for_events = state.clone();
-    std::thread::spawn(move || {
-        while let Ok(event) = rx.recv() {
-            state_for_events.handle_system_event(event);
-        }
-    });
-
-    // Trigger initial show if --once or on boot
-    if args.once {
+    if args.once || args.test || args.content.is_some() {
         state.trigger_show();
+        if let Some(body) = args.content {
+            *state.pending_content.lock().unwrap() = Some(PostItContent {
+                title: None,
+                body,
+            });
+        }
     }
 
     // Configure eframe
