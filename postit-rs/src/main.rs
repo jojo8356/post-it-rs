@@ -177,6 +177,12 @@ impl eframe::App for PostItApp {
         // Update and render UI if active
         let mut ui_lock = self.state.ui.lock().unwrap();
         if let Some(ui) = ui_lock.as_mut() {
+            // Some Linux window managers ignore fullscreen while a window is
+            // unmapped. Retry once visible, until the viewport confirms it.
+            let overlay_enabled = self.state.config.lock().unwrap().overlay.enabled;
+            if overlay_enabled && !ctx.input(|i| i.viewport().fullscreen.unwrap_or(false)) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(true));
+            }
             ui.ui(ctx);
             
             if ui.should_close() {
@@ -263,7 +269,8 @@ fn main() -> Result<()> {
         });
     }
 
-    if args.once || args.test || args.content.is_some() {
+    let show_immediately = args.once || args.test || args.content.is_some();
+    if show_immediately {
         state.trigger_show();
         if let Some(body) = args.content {
             *state.pending_content.lock().unwrap() = Some(PostItContent {
@@ -281,7 +288,7 @@ fn main() -> Result<()> {
             .with_fullscreen(config.overlay.enabled)
             .with_always_on_top()
             .with_resizable(config.window.resizeable)
-            .with_visible(false) // Start hidden, show when triggered
+            .with_visible(show_immediately) // Map demos before requesting fullscreen
             .with_taskbar(!config.window.show_in_taskbar),
         ..Default::default()
     };
