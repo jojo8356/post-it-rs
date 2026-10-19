@@ -177,11 +177,18 @@ impl eframe::App for PostItApp {
         // Update and render UI if active
         let mut ui_lock = self.state.ui.lock().unwrap();
         if let Some(ui) = ui_lock.as_mut() {
-            // Some Linux window managers ignore fullscreen while a window is
-            // unmapped. Retry once visible, until the viewport confirms it.
-            let overlay_enabled = self.state.config.lock().unwrap().overlay.enabled;
-            if overlay_enabled && !ctx.input(|i| i.viewport().fullscreen.unwrap_or(false)) {
-                ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(true));
+            // Native fullscreen may bypass desktop compositing and make a
+            // transparent surface opaque. Use a borderless monitor-sized window.
+            if self.state.config.lock().unwrap().overlay.enabled {
+                let (monitor_size, inner_rect) = ctx.input(|i| {
+                    (i.viewport().monitor_size, i.viewport().inner_rect)
+                });
+                if let Some(size) = monitor_size {
+                    if inner_rect.is_none_or(|rect| (rect.size() - size).length() > 1.0) {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(egui::Pos2::ZERO));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                    }
+                }
             }
             ui.ui(ctx);
             
@@ -285,7 +292,6 @@ fn main() -> Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_decorations(false)
             .with_transparent(true)
-            .with_fullscreen(config.overlay.enabled)
             .with_always_on_top()
             .with_resizable(config.window.resizeable)
             .with_visible(show_immediately) // Map demos before requesting fullscreen
