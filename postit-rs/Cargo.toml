@@ -83,6 +83,9 @@ image = "0.25"  # For loading background images
 walkdir = "2.4"  # For font directory scanning
 rand = "0.8"  # For random content selection
 
+[dev-dependencies]
+tempfile = "3"
+
 [build-dependencies]
 #[cfg(target_os = "windows")]
 embed-resource = "1.8"

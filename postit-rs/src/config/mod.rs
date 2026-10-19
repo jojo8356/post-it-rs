@@ -592,7 +592,6 @@ impl PostItContent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::str::FromStr;
 
     #[test]
     fn test_color_hex_parsing() {

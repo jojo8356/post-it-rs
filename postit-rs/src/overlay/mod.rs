@@ -303,10 +303,19 @@ mod tests {
         let mut overlay = Overlay::new(config);
         
         overlay.set_visible(false);
-        assert!(!overlay.is_animating() || overlay.current_opacity() < 0.40);
-        
+        assert!(overlay.is_animating());
+        assert_eq!(overlay.current_opacity(), 0.40);
+        overlay.animation_start = Some(Instant::now() - overlay.animation_duration);
+        overlay.update();
+        assert!(!overlay.is_animating());
+        assert_eq!(overlay.current_opacity(), 0.0);
+
         overlay.set_visible(true);
-        assert!(overlay.is_animating() || overlay.current_opacity() > 0.0);
+        assert!(overlay.is_animating());
+        overlay.animation_start = Some(Instant::now() - overlay.animation_duration);
+        overlay.update();
+        assert!(!overlay.is_animating());
+        assert_eq!(overlay.current_opacity(), 0.40);
     }
 
     #[test]

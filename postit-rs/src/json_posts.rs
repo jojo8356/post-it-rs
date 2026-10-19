@@ -294,10 +294,10 @@ mod tests {
     #[test]
     fn test_toggle_enabled() {
         let mut collection = JsonPostItCollection::example();
-        let id = &collection.posts[0].id;
-        assert!(collection.toggle_enabled(id));
+        let id = collection.posts[0].id.clone();
+        assert!(collection.toggle_enabled(&id));
         assert!(!collection.posts[0].enabled);
-        assert!(collection.toggle_enabled(id));
+        assert!(collection.toggle_enabled(&id));
         assert!(collection.posts[0].enabled);
     }
 
