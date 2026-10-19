@@ -289,9 +289,15 @@ fn main() -> Result<()> {
 
     // Configure eframe
     let native_options = eframe::NativeOptions {
+        // WGPU negotiates a transparent surface alpha mode explicitly. The
+        // default OpenGL config can produce opaque surfaces on Wayland drivers.
+        renderer: eframe::Renderer::Wgpu,
+        // Do not restore geometry from earlier native-fullscreen runs.
+        persist_window: false,
         viewport: egui::ViewportBuilder::default()
             .with_decorations(false)
             .with_transparent(true)
+            .with_fullscreen(false)
             .with_always_on_top()
             .with_resizable(config.window.resizeable)
             .with_visible(show_immediately) // Map demos before requesting fullscreen
