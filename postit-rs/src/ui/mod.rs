@@ -64,6 +64,10 @@ impl PostItUI {
     /// Update auto-close timer
     pub fn update(&mut self, ctx: &Context) {
         self.overlay.update();
+
+        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.close_requested = true;
+        }
         
         if let Some(duration) = self.auto_close_timer {
             if let Some(start) = self.show_time {

@@ -152,6 +152,11 @@ impl PostItApp {
 }
 
 impl eframe::App for PostItApp {
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        // Only the overlay should tint the desktop, not eframe's default clear.
+        [0.0, 0.0, 0.0, 0.0]
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Check if we should show the post-it
         let mut show = self.state.show_postit.lock().unwrap();
@@ -273,6 +278,7 @@ fn main() -> Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_decorations(false)
             .with_transparent(true)
+            .with_fullscreen(config.overlay.enabled)
             .with_always_on_top()
             .with_resizable(config.window.resizeable)
             .with_visible(false) // Start hidden, show when triggered
