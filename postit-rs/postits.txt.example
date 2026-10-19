@@ -1,0 +1,15 @@
+# Post-it content file - one per line
+# Format: [title]|[body]  (title is optional)
+
+Rappel|Buvez de l'eau et étirez-vous !
+Rappel|Pensez à commit & push avant le déjeuner
+Citation|"Le code est lu plus souvent qu'il n'est écrit." — Guido van Rossum
+Focus|Une seule chose à la fois. Terminez-la.
+Santé|Regardez loin 20 secondes (règle 20-20-20)
+Productivité|La méthode Pomodoro : 25min focus / 5min pause
+Git|git add -p pour reviewer vos changements avant commit
+Rust|let x = 5; // immutable by default
+Motivation|Progrès > Perfection
+Astuce|Ctrl+Shift+T rouvre l'onglet fermé par erreur
+|Simple note sans titre
+Citation|"Premature optimization is the root of all evil." — Donald Knuth

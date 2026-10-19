@@ -1,0 +1,66 @@
+[general]
+content_mode = "random"
+content_file = ""
+sequential_index = 0
+
+[trigger]
+on_boot = true
+on_wake = true
+delay_ms = 800
+
+[title]
+enabled = true
+text = "📌  Post-it du jour"
+font_path = ""
+font_size = 14
+font_weight = "bold"
+color = "#FFFFFF"
+bg_color = "#2D6BFF"
+bg_image = ""
+padding = 10
+border_radius = 8
+alignment = "center"
+
+[body]
+font_path = ""
+font_size = 13
+font_weight = "normal"
+color = "#E0E0E0"
+bg_color = "#1E1E1E"
+bg_image = ""
+padding = 16
+border_radius = 10
+alignment = "left"
+line_height = 1.5
+max_width = 420
+shadow = true
+
+[overlay]
+enabled = true
+color = "#000000"
+opacity = 0.4000000059604645
+click_through = false
+blur_background = false
+animation_ms = 250
+
+[window]
+position = "center"
+custom_x = 0
+custom_y = 0
+always_on_top = true
+accept_focus = false
+show_in_taskbar = false
+resizeable = false
+close_on_click = false
+auto_close_ms = 0
+max_width = 800
+
+[fonts]
+custom_fonts_dir = "fonts"
+
+[advanced]
+log_level = "info"
+log_file = ""
+monitor_index = 0
+toggle_hotkey = ""
+

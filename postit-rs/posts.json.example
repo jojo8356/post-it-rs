@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "default_category": "",
+  "posts": [
+    {
+      "id": "hydration",
+      "title": "💧 Hydratation",
+      "body": "Buvez un grand verre d'eau !",
+      "enabled": true,
+      "category": "santé",
+      "weight": 3
+    },
+    {
+      "id": "stretch",
+      "title": "🧘 Étirement",
+      "body": "Levez-vous et étirez-vous 30 secondes",
+      "enabled": true,
+      "category": "santé",
+      "weight": 3
+    },
+    {
+      "id": "eyes",
+      "title": "👀 Yeux",
+      "body": "Regardez loin 20 secondes (règle 20-20-20)",
+      "enabled": true,
+      "category": "santé",
+      "weight": 2
+    },
+    {
+      "id": "focus",
+      "title": "🎯 Focus",
+      "body": "Une seule tâche à la fois. Terminez-la.",
+      "enabled": true,
+      "category": "productivité",
+      "weight": 2
+    },
+    {
+      "id": "pomodoro",
+      "title": "🍅 Pomodoro",
+      "body": "25 min focus / 5 min pause. Répétez.",
+      "enabled": true,
+      "category": "productivité",
+      "weight": 2
+    },
+    {
+      "id": "git_commit",
+      "title": "📝 Git",
+      "body": "Committez vos changements régulièrement",
+      "enabled": true,
+      "category": "dev",
+      "weight": 1
+    },
+    {
+      "id": "code_review",
+      "title": "🔍 Code Review",
+      "body": "Relisez votre code avant de push",
+      "enabled": true,
+      "category": "dev",
+      "weight": 1
+    },
+    {
+      "id": "quote_knuth",
+      "title": "💭 Citation",
+      "body": "\"Premature optimization is the root of all evil.\" — Donald Knuth",
+      "enabled": true,
+      "category": "citation",
+      "weight": 1
+    },
+    {
+      "id": "quote_torvalds",
+      "title": "💭 Citation",
+      "body": "\"Talk is cheap. Show me the code.\" — Linus Torvalds",
+      "enabled": true,
+      "category": "citation",
+      "weight": 1
+    },
+    {
+      "id": "motivation",
+      "title": "🚀 Motivation",
+      "body": "Progrès > Perfection. Continuez !",
+      "enabled": true,
+      "category": "motivation",
+      "weight": 2
+    }
+  ]
+}
